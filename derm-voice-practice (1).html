@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Derm English Practice</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f7; min-height: 100vh; padding: 16px; }
+  .app { max-width: 480px; margin: 0 auto; }
+  h1 { font-size: 18px; font-weight: 600; color: #1d1d1f; margin-bottom: 4px; }
+  .sub { font-size: 13px; color: #6e6e73; margin-bottom: 16px; }
+
+  /* API key setup */
+  .api-setup { background: #fff; border-radius: 16px; padding: 16px; margin-bottom: 16px; border: 1px solid #e5e5ea; }
+  .api-setup label { font-size: 13px; color: #6e6e73; display: block; margin-bottom: 6px; }
+  .api-setup input { width: 100%; padding: 10px 12px; border: 1px solid #d1d1d6; border-radius: 10px; font-size: 13px; font-family: monospace; color: #1d1d1f; background: #f5f5f7; }
+  .api-setup input:focus { outline: none; border-color: #007aff; }
+  .api-note { font-size: 11px; color: #6e6e73; margin-top: 6px; }
+
+  /* Scenario */
+  .sc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .sc { background: #fff; border: 1px solid #e5e5ea; border-radius: 12px; padding: 12px; cursor: pointer; transition: all 0.15s; }
+  .sc.active { border: 2px solid #007aff; background: #f0f7ff; }
+  .sc-name { font-size: 14px; font-weight: 600; color: #1d1d1f; }
+  .sc.active .sc-name { color: #007aff; }
+  .sc-sub { font-size: 11px; color: #6e6e73; margin-top: 2px; }
+
+  /* Patient card */
+  .patient-card { background: #fff; border-radius: 16px; padding: 14px 16px; margin-bottom: 12px; border: 1px solid #e5e5ea; display: flex; align-items: center; gap: 12px; }
+  .avatar { width: 44px; height: 44px; border-radius: 50%; background: #cce4ff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: #0051a8; flex-shrink: 0; }
+  .pname { font-size: 15px; font-weight: 600; color: #1d1d1f; }
+  .pcc { font-size: 12px; color: #6e6e73; margin-top: 2px; }
+
+  /* Status */
+  .status-box { background: #fff; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; border: 1px solid #e5e5ea; text-align: center; }
+  .status-txt { font-size: 14px; color: #6e6e73; }
+
+  /* Transcript */
+  .transcript { background: #fff; border-radius: 16px; padding: 12px; margin-bottom: 12px; border: 1px solid #e5e5ea; min-height: 120px; max-height: 240px; overflow-y: auto; }
+  .empty-tx { font-size: 13px; color: #aeaeb2; text-align: center; padding: 20px 0; }
+  .line { font-size: 13px; line-height: 1.6; margin-bottom: 8px; padding: 8px 10px; border-radius: 10px; }
+  .line.doc { background: #007aff; color: #fff; margin-left: 20px; }
+  .line.pt { background: #f2f2f7; color: #1d1d1f; margin-right: 20px; }
+  .line .role { font-weight: 600; font-size: 11px; display: block; margin-bottom: 2px; opacity: 0.75; }
+
+  /* Feedback */
+  .feedback { background: #f0fdf4; border: 1px solid #86efac; border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; display: none; }
+  .fb-label { font-size: 11px; font-weight: 600; color: #166534; margin-bottom: 4px; }
+  .fb-text { font-size: 13px; color: #14532d; line-height: 1.6; white-space: pre-line; }
+
+  /* Mic */
+  .mic-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .mic-btn { width: 80px; height: 80px; border-radius: 50%; border: none; background: #007aff; color: #fff; font-size: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s; -webkit-tap-highlight-color: transparent; }
+  .mic-btn.recording { background: #ff3b30; animation: pulse 1s infinite; }
+  .mic-btn.speaking { background: #34c759; }
+  .mic-btn:disabled { background: #d1d1d6; cursor: not-allowed; }
+  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+  .mic-label { font-size: 13px; color: #6e6e73; }
+
+  /* Controls */
+  .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .ctrl { padding: 10px 8px; border-radius: 12px; border: 1px solid #d1d1d6; background: #fff; font-size: 13px; color: #6e6e73; cursor: pointer; text-align: center; -webkit-tap-highlight-color: transparent; }
+  .ctrl:active { background: #f2f2f7; }
+  .ctrl.on { border-color: #007aff; color: #007aff; background: #f0f7ff; }
+  .ctrl.primary { background: #007aff; color: #fff; border-color: #007aff; font-weight: 600; }
+  .ctrl.primary:active { background: #0062cc; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Derm English Practice</h1>
+  <p class="sub">AI 환자와 영어 진료 롤플레이</p>
+
+  <div class="api-setup">
+    <label>Anthropic API Key</label>
+    <input type="password" id="apiKey" placeholder="sk-ant-api03-..." autocomplete="off" oninput="saveKey()" />
+    <div class="api-note">키는 이 기기에만 저장됩니다. 외부로 전송되지 않아요.</div>
+  </div>
+
+  <div class="sc-grid" id="scGrid">
+    <div class="sc active" data-id="acne" onclick="selectSc(this)">
+      <div class="sc-name">Acne</div>
+      <div class="sc-sub">여드름 · 24F</div>
+    </div>
+    <div class="sc" data-id="acne_scar" onclick="selectSc(this)">
+      <div class="sc-name">Acne scars</div>
+      <div class="sc-sub">여드름 자국 · 29M</div>
+    </div>
+    <div class="sc" data-id="melasma" onclick="selectSc(this)">
+      <div class="sc-name">Melasma</div>
+      <div class="sc-sub">기미 · 44F</div>
+    </div>
+    <div class="sc" data-id="rosacea" onclick="selectSc(this)">
+      <div class="sc-name">Rosacea</div>
+      <div class="sc-sub">주사 · 38F</div>
+    </div>
+    <div class="sc" data-id="pore" onclick="selectSc(this)">
+      <div class="sc-name">Enlarged pores</div>
+      <div class="sc-sub">모공 · 33F</div>
+    </div>
+    <div class="sc" data-id="botox" onclick="selectSc(this)">
+      <div class="sc-name">Botox/Filler</div>
+      <div class="sc-sub">보톡스/필러 · 35F</div>
+    </div>
+    <div class="sc" data-id="hifu" onclick="selectSc(this)">
+      <div class="sc-name">Face lifting</div>
+      <div class="sc-sub">울쎄라/써마지/슈링크 · 49F</div>
+    </div>
+    <div class="sc" data-id="rejuran" onclick="selectSc(this)">
+      <div class="sc-name">Rejuran/Juvelook</div>
+      <div class="sc-sub">리쥬란/쥬베룩 · 41F</div>
+    </div>
+    <div class="sc" data-id="alopecia" onclick="selectSc(this)">
+      <div class="sc-name">Hair loss</div>
+      <div class="sc-sub">탈모 · 36M</div>
+    </div>
+    <div class="sc" data-id="laser_hair" onclick="selectSc(this)">
+      <div class="sc-name">Laser hair removal</div>
+      <div class="sc-sub">제모 · 27F</div>
+    </div>
+    <div class="sc" data-id="eczema" onclick="selectSc(this)">
+      <div class="sc-name">Eczema</div>
+      <div class="sc-sub">습진 · 43M</div>
+    </div>
+    <div class="sc" data-id="urticaria" onclick="selectSc(this)">
+      <div class="sc-name">Urticaria</div>
+      <div class="sc-sub">두드러기 · 28M</div>
+    </div>
+  </div>
+
+  <div class="patient-card">
+    <div class="avatar" id="avInit">SE</div>
+    <div>
+      <div class="pname" id="pName">Sarah Evans, 24F</div>
+      <div class="pcc" id="pCC">Chief complaint: facial acne breakout</div>
+    </div>
+  </div>
+
+  <div class="status-box">
+    <div class="status-txt" id="statusTxt">API 키 입력 후 시작을 누르세요</div>
+  </div>
+
+  <div class="transcript" id="transcript">
+    <div class="empty-tx" id="emptyTx">대화 내용이 여기에 표시됩니다</div>
+  </div>
+
+  <div class="feedback" id="fbCard">
+    <div class="fb-label">피드백</div>
+    <div class="fb-text" id="fbText"></div>
+  </div>
+
+  <div class="mic-wrap">
+    <button class="mic-btn" id="micBtn" onclick="handleMic()" disabled>🎤</button>
+    <div class="mic-label" id="micLabel">먼저 시작을 누르세요</div>
+  </div>
+
+  <div class="controls">
+    <button class="ctrl primary" id="startBtn" onclick="startSession()">▶ 시작</button>
+    <button class="ctrl on" id="fbToggle" onclick="toggleFb()">피드백 ON</button>
+    <button class="ctrl" onclick="resetSession()">↺ 리셋</button>
+  </div>
+</div>
+
+<script>
+const scenarios = {
+  acne: {
+    av:'SE', name:'Sarah Evans, 24F', cc:'Chief complaint: facial acne breakout',
+    sys:`You are Sarah Evans, a 24-year-old American female patient at a Korean dermatology clinic. You have moderate inflammatory acne (papules and pustules) on your forehead and cheeks for about 3 weeks, and you also have some old acne scars — reddish marks (post-inflammatory erythema) and a few depressed scars on your cheeks. You are self-conscious and slightly anxious.
+
+The doctor may discuss various treatments. React naturally as a real patient would:
+
+ACNE TREATMENTS the doctor might mention:
+- Antibiotics (doxycycline): you've heard antibiotics can cause antibiotic resistance, ask about this
+- Isotretinoin (Accutane/피지조절제): you've heard it's very effective but are scared of side effects like dryness and birth defects — ask if it's really necessary
+- Comedone extraction (압출): you're worried it will hurt and leave marks
+- PDT (photodynamic therapy): curious about what the light treatment involves, ask if it causes redness/downtime
+- Gold PTT: ask how it's different from PDT
+- Laser treatment / photothermal therapy: ask if it hurts
+
+ACNE SCAR TREATMENTS the doctor might mention:
+- V-beam (vascular laser) for red marks (PIE): ask how many sessions needed and if the redness will fully go away
+- Fraxel laser for rolling/box scars: ask about downtime and pain
+- Juvelook injection for scar improvement: ask what's in it and how it works
+
+Respond naturally, 1-3 sentences per turn. Be curious, sometimes nervous, sometimes relieved. Ask follow-up questions based on what the doctor explains. Do not accept everything passively — a real patient would ask "how long does it take?", "will it hurt?", "how much does it cost roughly?", "is it safe?"`
+  },
+  eczema: {
+    av:'MK', name:'Michael Kim, 43M', cc:'Chief complaint: itchy rash on both hands',
+    sys:`You are Michael Kim, a 43-year-old male patient from Canada. You have itchy, dry, cracked skin on both hands for 2 months. You are a chef who washes hands constantly and are frustrated as it affects your work. You have tried basic moisturizers with no improvement.
+
+The doctor may discuss: topical steroids (ask if safe for long-term use), emollients/moisturizers, antihistamines (ask if they cause drowsiness), tacrolimus/pimecrolimus (non-steroid options), patch testing for allergens, or lifestyle changes. Ask natural follow-up questions like: "Will this come back?", "Should I wear gloves at work?", "How long until it heals?". Respond naturally, 1-3 sentences per turn.`
+  },
+  urticaria: {
+    av:'AT', name:'Alex Thompson, 28M', cc:'Chief complaint: sudden hives all over body',
+    sys:`You are Alex Thompson, 28M, an Australian tourist in Korea. You developed hives (wheals) all over your torso and arms yesterday. You ate at a seafood restaurant two days ago. You are anxious, not on regular medication, and have never had this before.
+
+The doctor may discuss: antihistamines (ask how quickly they work), oral steroids (ask about side effects), epinephrine/EpiPen (ask if your case is that serious), allergy testing, identifying triggers. You are worried it might come back. Ask: "Is this dangerous?", "Should I go to the ER?", "Can I still travel?". 1-3 sentences per turn.`
+  },
+  rosacea: {
+    av:'RB', name:'Rachel Brown, 38F', cc:'Chief complaint: facial redness and flushing',
+    sys:`You are Rachel Brown, 38F, a British expat in Seoul. You have persistent redness and flushing on your cheeks and nose that worsens with alcohol, cold weather, and spicy food. You also notice small visible blood vessels. It has been worsening for 6 months and you are quite self-conscious.
+
+The doctor may discuss: Vbeam laser (vascular laser) for visible vessels — ask how many sessions and if it hurts; Excel V laser; topical metronidazole or azelaic acid; oral antibiotics (doxycycline) — ask how long you need to take it; triggers avoidance; IPL. Ask about downtime, whether redness can return, and if it's curable. 1-3 sentences per turn.`
+  },
+  acne_scar: {
+    av:'KP', name:'Kevin Park, 29M', cc:'Chief complaint: acne scars — red marks and depressed scars',
+    sys:`You are Kevin Park, 29M, a Korean-American man. Your acne has mostly cleared up but you are left with red/pink marks (post-inflammatory erythema) on your cheeks and some depressed rolling and boxcar scars. You want them treated and are wondering what options exist.
+
+The doctor may discuss:
+- Vbeam laser for red marks: ask how many sessions, if there is downtime, if the redness fully disappears
+- Fraxel/fractional laser for depressed scars: ask about pain, downtime (redness/peeling), how many sessions
+- Secret RF / microneedling RF: ask how it differs from Fraxel
+- Juvelook injection (PDRN/polynucleotide): ask what's in it, how it works, how many sessions
+- Subcision: ask what it is and if it's painful
+- TCA cross: ask what acid treatment means for ice-pick scars
+Ask: "Which is best for my type of scar?", "Can they all be done together?", "How long until I see results?". 1-3 sentences per turn.`
+  },
+  botox: {
+    av:'CL', name:'Christine Liu, 35F', cc:'Consultation: Botox and filler',
+    sys:`You are Christine Liu, 35F, from Singapore. You want Botox for forehead lines, frown lines (11 lines), and crow's feet. You are also considering filler for your nasolabial folds and a little volume in your cheeks. You had Botox once 2 years ago in Singapore and liked it but felt it wore off too fast.
+
+The doctor may discuss: Botox units and dosing (ask how many units you need), longevity (ask why it wore off quickly before — are there ways to make it last longer?), filler types HA vs Sculptra (ask about the difference and how long each lasts), bruising risk, natural vs. overdone results, combination treatments. Ask: "Will I look frozen?", "How long does filler last?", "Can Botox lift my brow?". 1-3 sentences per turn.`
+  },
+  melasma: {
+    av:'NP', name:'Nancy Park, 44F', cc:'Chief complaint: melasma (facial pigmentation)',
+    sys:`You are Nancy Park, 44F, a Korean-American woman. You have had melasma on both cheeks for years, worsened significantly after pregnancy. You've tried hydroquinone cream abroad with minimal effect. You're frustrated and researched PicoWay and Fraxel online.
+
+The doctor may discuss: toning laser (Q-switched Nd:YAG) — ask about the Hollywood laser / StarWalker settings; picosecond laser (PicoWay/Enlighten) — ask why it's better than older lasers; oral tranexamic acid / melasma tablets — ask if medication is really necessary; topical creams (arbutin, melasma cream) — ask how long to use; treatment intervals; PIH risk. You are specifically worried about PIH from aggressive treatment because a friend got it. Ask about realistic expectations — "Will it fully disappear?". 1-3 sentences per turn.`
+  },
+  hifu: {
+    av:'DM', name:'Diana Mitchell, 49F', cc:'Consultation: non-surgical face lifting',
+    sys:`You are Diana Mitchell, 49F, an American woman living in Seoul. You have visible skin laxity on your lower face, jowls, and early turkey neck. You have researched Ultherapy, Thermage FLX, and Shurink (HIFU) online and are confused about which is best.
+
+The doctor may discuss:
+- Thermage FLX (monopolar RF): ask who is the best candidate — you heard it works better for thin skin
+- Ultherapy (HIFU): ask why it's more expensive and if the pain is really as bad as reviews say
+- Shurink Universe (HIFU): ask how it compares to Ultherapy, and about NP mode vs standard mode
+- Combination approach: ask if doing two lifting treatments together is better
+- Results timeline and longevity: ask when you'll see results and how long they last
+- Thread lift (실리프팅): ask if threads are better for your level of laxity
+Ask about pain management, downtime, and realistic outcomes. 1-3 sentences per turn.`
+  },
+  rejuran: {
+    av:'YT', name:'Yvonne Tan, 41F', cc:'Consultation: Rejuran / skin booster',
+    sys:`You are Yvonne Tan, 41F, from Malaysia, visiting Seoul for aesthetic treatment. Your skin feels dull, has large pores, fine lines around the eyes, and lacks hydration. You have heard about Rejuran Healer (PDRN salmon DNA) and Juvelook (polynucleotide).
+
+The doctor may discuss:
+- Rejuran Healer (손주사 direct injection): ask about the embossing/bumps after — do they go away? How painful is it?
+- Hydro-Rejuran (물광리쥬란, mixed with skin booster): ask how it differs from pure Rejuran and if it's less painful
+- Juvelook (PDLLA collagen stimulator): ask what makes it different from Rejuran
+- Skinbooster / Profhilo comparison: ask how Korean boosters compare
+- Number of sessions and intervals: ask how many sessions for visible results
+- Combining with laser: ask if Rejuran can be combined with pore laser same day
+Ask: "Will the needle marks show?", "How long do results last?", "Which is best for my concerns?". 1-3 sentences per turn.`
+  },
+  pore: {
+    av:'LW', name:'Laura Watson, 33F', cc:'Chief complaint: enlarged pores and rough skin texture',
+    sys:`You are Laura Watson, 33F, from the UK. You have large, visible pores mainly on your nose and cheeks, and uneven skin texture. You use good skincare but nothing has helped. You are curious about in-clinic treatments.
+
+The doctor may discuss:
+- PicoWay DOE / Enlighten MLA fractional laser for pores: ask how it works and if it hurts
+- Secret RF (microneedling RF): ask about downtime and if skin will peel
+- Juvelook injection for pore improvement: ask how an injection helps pores
+- Aquapeel / chemical peel: ask if peeling is necessary before laser
+- Combination approach: ask if laser + injection same day is possible
+- How many sessions needed and realistic improvement percentage
+Ask: "How long is the redness after?", "Can I wear makeup the next day?", "Is this permanent?". 1-3 sentences per turn.`
+  },
+  alopecia: {
+    av:'BN', name:'Brian Nguyen, 36M', cc:'Chief complaint: hair thinning / early androgenetic alopecia',
+    sys:`You are Brian Nguyen, 36M, Vietnamese-American. You have noticed significant hair thinning on the crown and frontal hairline over the past 2 years. Your father is bald. You are worried and want to know your options before it gets worse.
+
+The doctor may discuss:
+- Minoxidil topical: ask about the foam vs. liquid and if hair falls out more when you first start
+- Finasteride / Dutasteride oral: ask about sexual side effects — you've read scary things online
+- PRP injection (platelet-rich plasma): ask how many sessions, does it hurt, is it effective
+- Exosome / stem cell treatment: ask what it is and if it's better than PRP  
+- Low-level laser therapy (LLLT): ask if it really works
+- Hair transplant: ask at what point you should consider it
+Ask: "Is my hair loss reversible?", "How long until I see results?", "What combination is most effective?". 1-3 sentences per turn.`
+  },
+  laser_hair: {
+    av:'SM', name:'Sophie Martin, 27F', cc:'Consultation: full body laser hair removal',
+    sys:`You are Sophie Martin, 27F, French, living in Seoul. You want to start laser hair removal for your legs, underarms, and bikini area. You have light-medium skin and dark hair. You have never done laser hair removal before and are nervous about pain and effectiveness.
+
+The doctor may discuss:
+- GentleMax Pro Plus (Alexandrite + Nd:YAG): ask which wavelength is used for your skin type
+- Treatment intervals (4 weeks): ask why you have to wait so long between sessions
+- Number of sessions for permanent reduction (5-10): ask if it's truly permanent
+- Pain level and cooling: ask if it really hurts as much as waxing
+- What to do before sessions (shaving, no waxing): ask why waxing is not allowed
+- White/gray hairs: ask if laser works on light hairs
+- Post-treatment care: ask about sun exposure restrictions
+Ask: "Can I shave between sessions?", "What if I have sensitive skin?", "Do all hairs fall out after one session?". 1-3 sentences per turn.`
+  }
+};
+
+let curSc = 'acne';
+let history = [];
+let fbOn = true;
+let started = false;
+let recognizing = false;
+let recognition = null;
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function getKey() { return document.getElementById('apiKey').value.trim(); }
+function saveKey() { try { localStorage.setItem('derm_api_key', getKey()); } catch(e) {} }
+function loadKey() { try { const k = localStorage.getItem('derm_api_key'); if(k) document.getElementById('apiKey').value = k; } catch(e) {} }
+
+function selectSc(el) {
+  document.querySelectorAll('.sc').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  curSc = el.dataset.id;
+  resetSession();
+}
+
+function setPatientUI() {
+  const s = scenarios[curSc];
+  document.getElementById('avInit').textContent = s.av;
+  document.getElementById('pName').textContent = s.name;
+  document.getElementById('pCC').textContent = s.cc;
+}
+
+function addLine(role, text) {
+  const tx = document.getElementById('transcript');
+  const em = document.getElementById('emptyTx');
+  if (em) em.remove();
+  const d = document.createElement('div');
+  d.className = `line ${role}`;
+  d.innerHTML = `<span class="role">${role === 'doc' ? 'You (doctor)' : 'Patient'}</span>${text}`;
+  tx.appendChild(d);
+  tx.scrollTop = tx.scrollHeight;
+}
+
+function setStatus(txt) { document.getElementById('statusTxt').textContent = txt; }
+
+async function startSession() {
+  if (!getKey()) { alert('API 키를 먼저 입력하세요.'); return; }
+  if (started) return;
+  started = true;
+  document.getElementById('startBtn').disabled = true;
+  setStatus('환자 입장 중...');
+  await getPatientResponse(null);
+  document.getElementById('micBtn').disabled = false;
+  document.getElementById('micLabel').textContent = '🎤 버튼을 누르고 말하세요';
+}
+
+function resetSession() {
+  started = false; history = []; recognizing = false;
+  if (recognition) try { recognition.stop(); } catch(e) {}
+  window.speechSynthesis.cancel();
+  document.getElementById('transcript').innerHTML = '<div class="empty-tx" id="emptyTx">대화 내용이 여기에 표시됩니다</div>';
+  document.getElementById('fbCard').style.display = 'none';
+  document.getElementById('micBtn').disabled = true;
+  document.getElementById('micBtn').className = 'mic-btn';
+  document.getElementById('micLabel').textContent = '먼저 시작을 누르세요';
+  document.getElementById('startBtn').disabled = false;
+  setStatus('API 키 입력 후 시작을 누르세요');
+  setPatientUI();
+}
+
+function toggleFb() {
+  fbOn = !fbOn;
+  const btn = document.getElementById('fbToggle');
+  btn.textContent = fbOn ? '피드백 ON' : '피드백 OFF';
+  btn.className = fbOn ? 'ctrl on' : 'ctrl';
+}
+
+function handleMic() {
+  if (!started) return;
+  if (recognizing) { stopListening(); return; }
+  startListening();
+}
+
+function startListening() {
+  if (!SR) { alert('Safari에서 열어주세요. 음성 인식은 Safari만 지원합니다.'); return; }
+  recognition = new SR();
+  recognition.lang = 'en-US';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  recognition.onstart = () => {
+    recognizing = true;
+    document.getElementById('micBtn').className = 'mic-btn recording';
+    document.getElementById('micBtn').textContent = '⏹';
+    document.getElementById('micLabel').textContent = '듣고 있어요... 말하세요';
+    setStatus('녹음 중...');
+  };
+  recognition.onresult = async (e) => {
+    const txt = e.results[0][0].transcript;
+    stopListening();
+    addLine('doc', txt);
+    document.getElementById('micBtn').disabled = true;
+    document.getElementById('micLabel').textContent = '처리 중...';
+    if (fbOn) await getFeedback(txt, e.results[0][0].transcript);
+    await getPatientResponse(txt);
+    document.getElementById('micBtn').disabled = false;
+    document.getElementById('micBtn').textContent = '🎤';
+    document.getElementById('micLabel').textContent = '🎤 버튼을 누르고 말하세요';
+  };
+  recognition.onerror = (e) => {
+    stopListening();
+    document.getElementById('micBtn').textContent = '🎤';
+    setStatus('인식 오류: ' + e.error + ' — 다시 시도하세요');
+  };
+  recognition.onend = () => { recognizing = false; };
+  recognition.start();
+}
+
+function stopListening() {
+  recognizing = false;
+  document.getElementById('micBtn').className = 'mic-btn';
+  if (recognition) try { recognition.stop(); } catch(e) {}
+}
+
+async function callAPI(systemPrompt, messages) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': getKey(),
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages
+    })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.content.find(b => b.type === 'text')?.text || '';
+}
+
+async function getPatientResponse(doctorText) {
+  const sc = scenarios[curSc];
+  if (doctorText) history.push({ role: 'user', content: doctorText });
+  const msgs = history.length === 0
+    ? [{ role: 'user', content: 'Start the consultation. Introduce yourself briefly as the patient and state your chief complaint naturally in 1-2 sentences.' }]
+    : history;
+  setStatus('환자 응답 생성 중...');
+  try {
+    const pt = await callAPI(sc.sys, msgs);
+    history.push({ role: 'assistant', content: pt });
+    addLine('pt', pt);
+    speakText(pt);
+  } catch(e) {
+    setStatus('오류: ' + e.message);
+  }
+}
+
+function speakText(text) {
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.lang = 'en-US';
+  utt.rate = 0.92;
+  const voices = window.speechSynthesis.getVoices();
+  const v = voices.find(v => v.lang.startsWith('en-US') && /female|samantha|karen/i.test(v.name))
+    || voices.find(v => v.lang.startsWith('en-US'))
+    || voices.find(v => v.lang.startsWith('en'));
+  if (v) utt.voice = v;
+  utt.onstart = () => {
+    setStatus('환자가 말하는 중...');
+    document.getElementById('micBtn').className = 'mic-btn speaking';
+    document.getElementById('micBtn').disabled = true;
+    document.getElementById('micBtn').textContent = '🔊';
+    document.getElementById('micLabel').textContent = '환자 말 듣는 중...';
+  };
+  utt.onend = () => {
+    document.getElementById('micBtn').className = 'mic-btn';
+    document.getElementById('micBtn').disabled = false;
+    document.getElementById('micBtn').textContent = '🎤';
+    document.getElementById('micLabel').textContent = '🎤 버튼을 누르고 말하세요';
+    setStatus('당신 차례입니다');
+  };
+  window.speechSynthesis.speak(utt);
+}
+
+async function getFeedback(doctorText, rawSTT) {
+  try {
+    const prompt = `A Korean dermatologist said the following to an English-speaking patient.
+
+What the speech-to-text recognized: "${rawSTT}"
+What was likely intended: "${doctorText}"
+
+Please analyze in Korean with these 3 sections:
+
+🎤 발음
+- STT가 이상하게 인식했거나 못 잡은 단어가 있으면 지적해줘. 없으면 "발음 문제 없음"
+- 예: "prescription" → "prescrip-shun"으로 들림
+
+💬 표현 자연스러움
+- 의사소통은 되지만 어색한 표현이 있으면 표시 (한국식 영어 패턴 포함)
+- 원어민 의사라면 쓰지 않을 표현을 콕 찍어줘
+
+✨ 원어민 표현으로
+- 전체 문장을 미국/영국 의사가 실제로 말할 법한 자연스러운 영어로 바꿔줘
+- 바꾼 표현에서 핵심 차이 한 줄로 설명
+
+간결하게, 각 섹션 2-3줄 이내로.`;
+
+    const fb = await callAPI('당신은 의료 영어 발음 및 표현 교정 전문 코치입니다.', [{ role: 'user', content: prompt }]);
+    document.getElementById('fbText').innerHTML = fb.replace(/\n/g, '<br>');
+    document.getElementById('fbCard').style.display = 'block';
+  } catch(e) {}
+}
+
+window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
+loadKey();
+setPatientUI();
+</script>
+</body>
+</html>
