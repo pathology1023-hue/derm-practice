@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Derm English Practice</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f7; min-height: 100vh; padding: 16px; }
+  .app { max-width: 480px; margin: 0 auto; }
+  h1 { font-size: 18px; font-weight: 600; color: #1d1d1f; margin-bottom: 4px; }
+  .sub { font-size: 13px; color: #6e6e73; margin-bottom: 16px; }
+
+  /* API key setup */
+  .api-setup { background: #fff; border-radius: 16px; padding: 16px; margin-bottom: 16px; border: 1px solid #e5e5ea; }
+  .api-setup label { font-size: 13px; color: #6e6e73; display: block; margin-bottom: 6px; }
+  .api-setup input { width: 100%; padding: 10px 12px; border: 1px solid #d1d1d6; border-radius: 10px; font-size: 13px; font-family: monospace; color: #1d1d1f; background: #f5f5f7; }
+  .api-setup input:focus { outline: none; border-color: #007aff; }
+  .api-note { font-size: 11px; color: #6e6e73; margin-top: 6px; }
+
+  /* Scenario */
+  .sc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+  .sc { background: #fff; border: 1px solid #e5e5ea; border-radius: 12px; padding: 12px; cursor: pointer; transition: all 0.15s; }
+  .sc.active { border: 2px solid #007aff; background: #f0f7ff; }
+  .sc-name { font-size: 14px; font-weight: 600; color: #1d1d1f; }
+  .sc.active .sc-name { color: #007aff; }
+  .sc-sub { font-size: 11px; color: #6e6e73; margin-top: 2px; }
+
+  /* Patient card */
+  .patient-card { background: #fff; border-radius: 16px; padding: 14px 16px; margin-bottom: 12px; border: 1px solid #e5e5ea; display: flex; align-items: center; gap: 12px; }
+  .avatar { width: 44px; height: 44px; border-radius: 50%; background: #cce4ff; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 600; color: #0051a8; flex-shrink: 0; }
+  .pname { font-size: 15px; font-weight: 600; color: #1d1d1f; }
+  .pcc { font-size: 12px; color: #6e6e73; margin-top: 2px; }
+
+  /* Status */
+  .status-box { background: #fff; border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; border: 1px solid #e5e5ea; text-align: center; }
+  .status-txt { font-size: 14px; color: #6e6e73; }
+
+  /* Transcript */
+  .transcript { background: #fff; border-radius: 16px; padding: 12px; margin-bottom: 12px; border: 1px solid #e5e5ea; min-height: 120px; max-height: 240px; overflow-y: auto; }
+  .empty-tx { font-size: 13px; color: #aeaeb2; text-align: center; padding: 20px 0; }
+  .line { font-size: 13px; line-height: 1.6; margin-bottom: 8px; padding: 8px 10px; border-radius: 10px; }
+  .line.doc { background: #007aff; color: #fff; margin-left: 20px; }
+  .line.pt { background: #f2f2f7; color: #1d1d1f; margin-right: 20px; }
+  .line .role { font-weight: 600; font-size: 11px; display: block; margin-bottom: 2px; opacity: 0.75; }
+
+  /* Feedback */
+  .feedback { background: #f0fdf4; border: 1px solid #86efac; border-radius: 12px; padding: 10px 14px; margin-bottom: 12px; display: none; }
+  .fb-label { font-size: 11px; font-weight: 600; color: #166534; margin-bottom: 4px; }
+  .fb-text { font-size: 13px; color: #14532d; line-height: 1.5; }
+
+  /* Mic */
+  .mic-wrap { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .mic-btn { width: 80px; height: 80px; border-radius: 50%; border: none; background: #007aff; color: #fff; font-size: 32px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s; -webkit-tap-highlight-color: transparent; }
+  .mic-btn.recording { background: #ff3b30; animation: pulse 1s infinite; }
+  .mic-btn.speaking { background: #34c759; }
+  .mic-btn:disabled { background: #d1d1d6; cursor: not-allowed; }
+  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.06)} }
+  .mic-label { font-size: 13px; color: #6e6e73; }
+
+  /* Controls */
+  .controls { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .ctrl { padding: 10px 8px; border-radius: 12px; border: 1px solid #d1d1d6; background: #fff; font-size: 13px; color: #6e6e73; cursor: pointer; text-align: center; -webkit-tap-highlight-color: transparent; }
+  .ctrl:active { background: #f2f2f7; }
+  .ctrl.on { border-color: #007aff; color: #007aff; background: #f0f7ff; }
+  .ctrl.primary { background: #007aff; color: #fff; border-color: #007aff; font-weight: 600; }
+  .ctrl.primary:active { background: #0062cc; }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Derm English Practice</h1>
+  <p class="sub">AI 환자와 영어 진료 롤플레이</p>
+
+  <div class="api-setup">
+    <label>Anthropic API Key</label>
+    <input type="password" id="apiKey" placeholder="sk-ant-api03-..." autocomplete="off" />
+    <div class="api-note">키는 이 기기에만 저장됩니다. 외부로 전송되지 않아요.</div>
+  </div>
+
+  <div class="sc-grid" id="scGrid">
+    <div class="sc active" data-id="acne" onclick="selectSc(this)">
+      <div class="sc-name">Acne</div>
+      <div class="sc-sub">여드름 · 24F</div>
+    </div>
+    <div class="sc" data-id="eczema" onclick="selectSc(this)">
+      <div class="sc-name">Eczema</div>
+      <div class="sc-sub">습진 · 43M</div>
+    </div>
+    <div class="sc" data-id="laser" onclick="selectSc(this)">
+      <div class="sc-name">Laser consult</div>
+      <div class="sc-sub">레이저 · 31F</div>
+    </div>
+    <div class="sc" data-id="urticaria" onclick="selectSc(this)">
+      <div class="sc-name">Urticaria</div>
+      <div class="sc-sub">두드러기 · 28M</div>
+    </div>
+  </div>
+
+  <div class="patient-card">
+    <div class="avatar" id="avInit">SE</div>
+    <div>
+      <div class="pname" id="pName">Sarah Evans, 24F</div>
+      <div class="pcc" id="pCC">Chief complaint: facial acne breakout</div>
+    </div>
+  </div>
+
+  <div class="status-box">
+    <div class="status-txt" id="statusTxt">API 키 입력 후 시작을 누르세요</div>
+  </div>
+
+  <div class="transcript" id="transcript">
+    <div class="empty-tx" id="emptyTx">대화 내용이 여기에 표시됩니다</div>
+  </div>
+
+  <div class="feedback" id="fbCard">
+    <div class="fb-label">피드백</div>
+    <div class="fb-text" id="fbText"></div>
+  </div>
+
+  <div class="mic-wrap">
+    <button class="mic-btn" id="micBtn" onclick="handleMic()" disabled>🎤</button>
+    <div class="mic-label" id="micLabel">먼저 시작을 누르세요</div>
+  </div>
+
+  <div class="controls">
+    <button class="ctrl primary" id="startBtn" onclick="startSession()">▶ 시작</button>
+    <button class="ctrl on" id="fbToggle" onclick="toggleFb()">피드백 ON</button>
+    <button class="ctrl" onclick="resetSession()">↺ 리셋</button>
+  </div>
+</div>
+
+<script>
+const scenarios = {
+  acne: {
+    av:'SE', name:'Sarah Evans, 24F', cc:'Chief complaint: facial acne breakout',
+    sys:`You are Sarah Evans, a 24-year-old American female patient at a Korean dermatology clinic. You have moderate acne on forehead and cheeks for 3 weeks. You are self-conscious and slightly anxious. Respond as a real patient — naturally, 1-3 sentences. Sometimes vague, sometimes emotional. Ask follow-up questions occasionally.`
+  },
+  eczema: {
+    av:'MK', name:'Michael Kim, 43M', cc:'Chief complaint: itchy rash on both hands',
+    sys:`You are Michael Kim, a 43-year-old male patient. You have itchy, dry, cracked skin on both hands for 2 months. You are a chef who washes hands constantly and are frustrated as it affects your work. Respond naturally, 1-3 sentences.`
+  },
+  laser: {
+    av:'JL', name:'Jennifer Lee, 31F', cc:'Chief complaint: pigmentation (melasma)',
+    sys:`You are Jennifer Lee, 31F, consulting about laser treatment for facial melasma on both cheeks. You have researched PicoWay vs Fraxel online. You are interested but worried about downtime and side effects. Ask about costs and risks. 1-3 sentences.`
+  },
+  urticaria: {
+    av:'AT', name:'Alex Thompson, 28M', cc:'Chief complaint: sudden hives',
+    sys:`You are Alex Thompson, 28M, an Australian tourist in Korea. You developed hives all over torso and arms yesterday. You ate seafood two days ago. You are anxious and not on any medication. 1-3 sentences.`
+  }
+};
+
+let curSc = 'acne';
+let history = [];
+let fbOn = true;
+let started = false;
+let recognizing = false;
+let recognition = null;
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+function getKey() { return document.getElementById('apiKey').value.trim(); }
+
+function selectSc(el) {
+  document.querySelectorAll('.sc').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+  curSc = el.dataset.id;
+  resetSession();
+}
+
+function setPatientUI() {
+  const s = scenarios[curSc];
+  document.getElementById('avInit').textContent = s.av;
+  document.getElementById('pName').textContent = s.name;
+  document.getElementById('pCC').textContent = s.cc;
+}
+
+function addLine(role, text) {
+  const tx = document.getElementById('transcript');
+  const em = document.getElementById('emptyTx');
+  if (em) em.remove();
+  const d = document.createElement('div');
+  d.className = `line ${role}`;
+  d.innerHTML = `<span class="role">${role === 'doc' ? 'You (doctor)' : 'Patient'}</span>${text}`;
+  tx.appendChild(d);
+  tx.scrollTop = tx.scrollHeight;
+}
+
+function setStatus(txt) { document.getElementById('statusTxt').textContent = txt; }
+
+async function startSession() {
+  if (!getKey()) { alert('API 키를 먼저 입력하세요.'); return; }
+  if (started) return;
+  started = true;
+  document.getElementById('startBtn').disabled = true;
+  setStatus('환자 입장 중...');
+  await getPatientResponse(null);
+  document.getElementById('micBtn').disabled = false;
+  document.getElementById('micLabel').textContent = '🎤 버튼을 누르고 말하세요';
+}
+
+function resetSession() {
+  started = false; history = []; recognizing = false;
+  if (recognition) try { recognition.stop(); } catch(e) {}
+  window.speechSynthesis.cancel();
+  document.getElementById('transcript').innerHTML = '<div class="empty-tx" id="emptyTx">대화 내용이 여기에 표시됩니다</div>';
+  document.getElementById('fbCard').style.display = 'none';
+  document.getElementById('micBtn').disabled = true;
+  document.getElementById('micBtn').className = 'mic-btn';
+  document.getElementById('micLabel').textContent = '먼저 시작을 누르세요';
+  document.getElementById('startBtn').disabled = false;
+  setStatus('API 키 입력 후 시작을 누르세요');
+  setPatientUI();
+}
+
+function toggleFb() {
+  fbOn = !fbOn;
+  const btn = document.getElementById('fbToggle');
+  btn.textContent = fbOn ? '피드백 ON' : '피드백 OFF';
+  btn.className = fbOn ? 'ctrl on' : 'ctrl';
+}
+
+function handleMic() {
+  if (!started) return;
+  if (recognizing) { stopListening(); return; }
+  startListening();
+}
+
+function startListening() {
+  if (!SR) { alert('Safari에서 열어주세요. 음성 인식은 Safari만 지원합니다.'); return; }
+  recognition = new SR();
+  recognition.lang = 'en-US';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  recognition.onstart = () => {
+    recognizing = true;
+    document.getElementById('micBtn').className = 'mic-btn recording';
+    document.getElementById('micBtn').textContent = '⏹';
+    document.getElementById('micLabel').textContent = '듣고 있어요... 말하세요';
+    setStatus('녹음 중...');
+  };
+  recognition.onresult = async (e) => {
+    const txt = e.results[0][0].transcript;
+    stopListening();
+    addLine('doc', txt);
+    document.getElementById('micBtn').disabled = true;
+    document.getElementById('micLabel').textContent = '처리 중...';
+    if (fbOn) await getFeedback(txt);
+    await getPatientResponse(txt);
+    document.getElementById('micBtn').disabled = false;
+    document.getElementById('micBtn').textContent = '🎤';
+    document.getElementById('micLabel').textContent = '🎤 버튼을 누르고 말하세요';
+  };
+  recognition.onerror = (e) => {
+    stopListening();
+    document.getElementById('micBtn').textContent = '🎤';
+    setStatus('인식 오류: ' + e.error + ' — 다시 시도하세요');
+  };
+  recognition.onend = () => { recognizing = false; };
+  recognition.start();
+}
+
+function stopListening() {
+  recognizing = false;
+  document.getElementById('micBtn').className = 'mic-btn';
+  if (recognition) try { recognition.stop(); } catch(e) {}
+}
+
+async function callAPI(systemPrompt, messages) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': getKey(),
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
+    },
+    body: JSON.stringify({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages
+    })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error.message);
+  return data.content.find(b => b.type === 'text')?.text || '';
+}
+
+async function getPatientResponse(doctorText) {
+  const sc = scenarios[curSc];
+  if (doctorText) history.push({ role: 'user', content: doctorText });
+  const msgs = history.length === 0
+    ? [{ role: 'user', content: 'Start the consultation. Introduce yourself briefly as the patient and state your chief complaint naturally in 1-2 sentences.' }]
+    : history;
+  setStatus('환자 응답 생성 중...');
+  try {
+    const pt = await callAPI(sc.sys, msgs);
+    history.push({ role: 'assistant', content: pt });
+    addLine('pt', pt);
+    speakText(pt);
+  } catch(e) {
+    setStatus('오류: ' + e.message);
+  }
+}
+
+function speakText(text) {
+  window.speechSynthesis.cancel();
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.lang = 'en-US';
+  utt.rate = 0.92;
+  const voices = window.speechSynthesis.getVoices();
+  const v = voices.find(v => v.lang.startsWith('en-US') && /female|samantha|karen/i.test(v.name))
+    || voices.find(v => v.lang.startsWith('en-US'))
+    || voices.find(v => v.lang.startsWith('en'));
+  if (v) utt.voice = v;
+  utt.onstart = () => {
+    setStatus('환자가 말하는 중...');
+    document.getElementById('micBtn').className = 'mic-btn speaking';
+    document.getElementById('micBtn').disabled = true;
+    document.getElementById('micBtn').textContent = '🔊';
+    document.getElementById('micLabel').textContent = '환자 말 듣는 중...';
+  };
+  utt.onend = () => {
+    document.getElementById('micBtn').className = 'mic-btn';
+    document.getElementById('micBtn').disabled = false;
+    document.getElementById('micBtn').textContent = '🎤';
+    document.getElementById('micLabel').textContent = '🎤 버튼을 누르고 말하세요';
+    setStatus('당신 차례입니다');
+  };
+  window.speechSynthesis.speak(utt);
+}
+
+async function getFeedback(doctorText) {
+  try {
+    const fb = await callAPI(
+      '당신은 의료 영어 커뮤니케이션 코치입니다.',
+      [{ role: 'user', content: `피부과 의사가 환자에게 영어로 말했습니다: "${doctorText}"\n\n이 발화에 대해 한국어로 2-3문장 이내 코칭 피드백을 주세요. ✅ 또는 ⚠️ 로 시작하고, 의학 용어 정확성과 자연스러움에 집중해주세요.` }]
+    );
+    document.getElementById('fbText').textContent = fb;
+    document.getElementById('fbCard').style.display = 'block';
+  } catch(e) {}
+}
+
+window.speechSynthesis.onvoiceschanged = () => { window.speechSynthesis.getVoices(); };
+setPatientUI();
+</script>
+</body>
+</html>
